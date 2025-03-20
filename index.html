@@ -11,11 +11,14 @@
         body { font-family: Arial, sans-serif; text-align: center; background-color: #f4f4f4; }
         table { width: 80%; margin: auto; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; }
         th, td { border: 1px solid black; padding: 10px; text-align: center; }
-        th { background-color: #007BFF; color: white; padding: 15px; }
+        th { background-color: #085589; color: white; padding: 15px; }
         .input-box { width: 85%; padding: 5px; border: none; background: transparent; text-align: center; }
-        .filled { background-color: #90EE90 !important; }
-        .clear-btn { cursor: pointer; color: red; border: none; background: none; font-size: 16px; }
-        .nav-buttons button { padding: 10px; margin: 10px; cursor: pointer; background: #007BFF; color: white; border: none; border-radius: 5px; }
+        .filled { background-color: #f9cb14 !important; } /* اللون الأصفر */
+        .confirmed { background-color: #90EE90 !important; } /* اللون الأخضر */
+        .clear-btn, .confirm-btn { cursor: pointer; border: none; background: none; font-size: 16px; margin: 5px; }
+        .clear-btn { color: red; }
+        .confirm-btn { color: green; font-weight: bold; }
+        .nav-buttons button { padding: 10px; margin: 10px; cursor: pointer; background: #65818f; color: white; border: none; border-radius: 5px; }
     </style>
 </head>
 <body>
@@ -28,7 +31,14 @@
     <table>
         <thead>
             <tr>
-                <th>الوقت</th>
+                <th rowspan="2"></th>
+                <th id="dayName1"></th>
+                <th id="dayName2"></th>
+                <th id="dayName3"></th>
+                <th id="dayName4"></th>
+                <th id="dayName5"></th>
+            </tr>
+            <tr>
                 <th id="day1"></th>
                 <th id="day2"></th>
                 <th id="day3"></th>
@@ -61,6 +71,8 @@
             let startDate = new Date();
             startDate.setDate(currentDate.getDate() + (weekOffset * 7));
             let days = [];
+            let dayNames = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+
             for (let i = 0; i < 5; i++) {
                 let day = new Date(startDate);
                 day.setDate(startDate.getDate() + i);
@@ -68,8 +80,10 @@
             }
 
             document.getElementById("week-range").textContent = `الأسبوع من ${days[0].toLocaleDateString("ar-EG")} إلى ${days[4].toLocaleDateString("ar-EG")}`;
+
             ["day1", "day2", "day3", "day4", "day5"].forEach((id, index) => {
                 document.getElementById(id).textContent = days[index].toLocaleDateString("ar-EG");
+                document.getElementById(`dayName${index + 1}`).textContent = dayNames[days[index].getDay()];
             });
 
             generateSchedule();
@@ -82,17 +96,15 @@
 
             times.forEach((time, rowIndex) => {
                 let row = document.createElement("tr");
-                row.innerHTML = `<td style='background-color: #007BFF; color: white;'>${time}</td>`;
+                row.innerHTML = `<td style='background-color: #085589; color: white;'>${time}</td>`;
 
                 for (let colIndex = 0; colIndex < 5; colIndex++) {
                     let cell = document.createElement("td");
-                    cell.style.position = "relative";
                     let fileInput = createInput("رقم الملف");
                     let nameInput = createInput("الاسم");
                     let noteInput = createInput("ملاحظة");
-                    let clearButton = document.createElement("button");
-                    clearButton.innerHTML = "&times;";
-                    clearButton.className = "clear-btn";
+                    let clearButton = createButton("×", "clear-btn", () => clearCell(key, cell, fileInput, nameInput, noteInput));
+                    let confirmButton = createButton("✔", "confirm-btn", () => confirmCell(cell));
 
                     let key = `week${weekOffset}/time${rowIndex}/day${colIndex}`;
                     db.ref(key).get().then(snapshot => {
@@ -105,24 +117,14 @@
                         }
                     });
 
-                    [fileInput, nameInput, noteInput].forEach((input, idx) => {
+                    [fileInput, nameInput, noteInput].forEach(input => {
                         input.addEventListener("input", () => {
-                            db.ref(key).set({
-                                file: fileInput.value,
-                                name: nameInput.value,
-                                note: noteInput.value
-                            });
+                            db.ref(key).set({ file: fileInput.value, name: nameInput.value, note: noteInput.value });
                             checkFilled(cell, fileInput, nameInput, noteInput);
                         });
                     });
 
-                    clearButton.onclick = () => {
-                        db.ref(key).remove();
-                        [fileInput, nameInput, noteInput].forEach(input => input.value = "");
-                        checkFilled(cell, fileInput, nameInput, noteInput);
-                    };
-
-                    cell.append(fileInput, nameInput, noteInput, clearButton);
+                    cell.append(fileInput, nameInput, noteInput, clearButton, confirmButton);
                     checkFilled(cell, fileInput, nameInput, noteInput);
                     row.appendChild(cell);
                 }
@@ -138,8 +140,26 @@
             return input;
         }
 
+        function createButton(symbol, className, onClick) {
+            let button = document.createElement("button");
+            button.innerHTML = symbol;
+            button.className = className;
+            button.onclick = onClick;
+            return button;
+        }
+
         function checkFilled(cell, ...inputs) {
             cell.classList.toggle("filled", inputs.some(input => input.value));
+        }
+
+        function confirmCell(cell) {
+            cell.classList.add("confirmed");
+        }
+
+        function clearCell(key, cell, ...inputs) {
+            db.ref(key).remove();
+            inputs.forEach(input => input.value = "");
+            cell.classList.remove("filled", "confirmed");
         }
 
         function prevWeek() { weekOffset--; updateWeek(); }
