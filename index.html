@@ -10,7 +10,7 @@
     <style>
         body { font-family: Arial, sans-serif; text-align: center; background-color: #f4f4f4; }
         table { width: 80%; margin: auto; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; }
-        th, td { border: 1px solid black; padding: 10px; text-align: center; }
+        th, td { border: 1px solid black; padding: 10px; text-align: center;  }
         th { background-color: #085589; color: white; padding: 15px; }
         .input-box { width: 85%; padding: 5px; border: none; background: transparent; text-align: center; }
         .filled { background-color: #f9cb14 !important; } /* اللون الأصفر */
@@ -82,7 +82,7 @@
             document.getElementById("week-range").textContent = `الأسبوع من ${days[0].toLocaleDateString("ar-EG")} إلى ${days[4].toLocaleDateString("ar-EG")}`;
 
             ["day1", "day2", "day3", "day4", "day5"].forEach((id, index) => {
-                document.getElementById(id).textContent = days[index].toLocaleDateString("ar-EG");
+                document.getElementById(id).textContent = days[index].toLocaleDateString("en-US");
                 document.getElementById(`dayName${index + 1}`).textContent = dayNames[days[index].getDay()];
             });
 
