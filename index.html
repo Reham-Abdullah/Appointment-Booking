@@ -3,18 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> حجز لمواعيد التنظيف </title>
+    <title>حجز مواعيد التنظيف</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; }
-        table { width: 80%; margin: auto; border-collapse: collapse; }
-        th, td { border: 1px solid black; padding: 10px; text-align: center; position: relative; }
-        th { background-color: #5A9BD5; color: white; padding: 10px; }
-        .input-box { width: 90%; padding: 5px; border: none; background: transparent; }
+        body { font-family: Arial, sans-serif; text-align: center; background-color: #f4f4f4; }
+        table { width: 80%; margin: auto; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; }
+        th, td { border: 1px solid black; padding: 10px; text-align: center; }
+        th { background-color: #007BFF; color: white; padding: 15px; }
+        .input-box { width: 85%; padding: 5px; border: none; background: transparent; text-align: center; }
         .filled { background-color: #90EE90 !important; }
+        .clear-btn { cursor: pointer; color: red; border: none; background: none; font-size: 16px; }
+        .nav-buttons button { padding: 10px; margin: 10px; cursor: pointer; background: #007BFF; color: white; border: none; border-radius: 5px; }
     </style>
 </head>
 <body>
-    <h2>حجز مواعيد التنظيف </h2>
+    <h2>حجز مواعيد التنظيف</h2>
     <div class="nav-buttons">
         <button onclick="prevWeek()">الأسبوع السابق</button>
         <span id="week-range"></span>
@@ -35,6 +40,20 @@
     </table>
 
     <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCWEpAq8H9fqMl8b1_GdhvEYN3rq-yb4UU",
+            authDomain: "appointmentbooking-ac570.firebaseapp.com",
+            databaseURL: "https://appointmentbooking-ac570-default-rtdb.firebaseio.com/",
+            projectId: "appointmentbooking-ac570",
+            storageBucket: "appointmentbooking-ac570.appspot.com",
+            messagingSenderId: "870303170531",
+            appId: "1:870303170531:web:eedb259a30f8bc75a5ead6",
+            measurementId: "G-K26TVB4DM1"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
         let currentDate = new Date();
         let weekOffset = 0;
 
@@ -49,91 +68,82 @@
             }
 
             document.getElementById("week-range").textContent = `الأسبوع من ${days[0].toLocaleDateString("ar-EG")} إلى ${days[4].toLocaleDateString("ar-EG")}`;
-            document.getElementById("day1").textContent = `الأحد ${days[0].toLocaleDateString("ar-EG")}`;
-            document.getElementById("day2").textContent = `الاثنين ${days[1].toLocaleDateString("ar-EG")}`;
-            document.getElementById("day3").textContent = `الثلاثاء ${days[2].toLocaleDateString("ar-EG")}`;
-            document.getElementById("day4").textContent = `الأربعاء ${days[3].toLocaleDateString("ar-EG")}`;
-            document.getElementById("day5").textContent = `الخميس ${days[4].toLocaleDateString("ar-EG")}`;
+            ["day1", "day2", "day3", "day4", "day5"].forEach((id, index) => {
+                document.getElementById(id).textContent = days[index].toLocaleDateString("ar-EG");
+            });
 
             generateSchedule();
         }
 
         function generateSchedule() {
-            const times = [];
-            for (let hour = 0; hour < 24; hour++) {
-                let amPm = hour < 12 ? "AM" : "PM";
-                let hourFormatted = hour % 12 === 0 ? 12 : hour % 12;
-                times.push(`${hourFormatted}:00 ${amPm}`);
-            }
-
+            const times = Array.from({ length: 24 }, (_, hour) => `${hour % 12 === 0 ? 12 : hour % 12}:00 ${hour < 12 ? "AM" : "PM"}`);
             const scheduleTable = document.getElementById("schedule");
             scheduleTable.innerHTML = "";
 
             times.forEach((time, rowIndex) => {
                 let row = document.createElement("tr");
-                let timeCell = document.createElement("td");
-                timeCell.textContent = time;
-                timeCell.style.backgroundColor = "#5A9BD5";
-                timeCell.style.color = "white";
-                row.appendChild(timeCell);
+                row.innerHTML = `<td style='background-color: #007BFF; color: white;'>${time}</td>`;
 
                 for (let colIndex = 0; colIndex < 5; colIndex++) {
                     let cell = document.createElement("td");
                     cell.style.position = "relative";
+                    let fileInput = createInput("رقم الملف");
+                    let nameInput = createInput("الاسم");
+                    let noteInput = createInput("ملاحظة");
+                    let clearButton = document.createElement("button");
+                    clearButton.innerHTML = "&times;";
+                    clearButton.className = "clear-btn";
 
-                    let fileInput = document.createElement("input");
-                    fileInput.type = "text";
-                    fileInput.placeholder = "رقم الملف";
-                    fileInput.className = "input-box";
-
-                    let nameInput = document.createElement("input");
-                    nameInput.type = "text";
-                    nameInput.placeholder = "الاسم";
-                    nameInput.className = "input-box";
-
-                    let noteInput = document.createElement("input");
-                    noteInput.type = "text";
-                    noteInput.placeholder = "ملاحظة";
-                    noteInput.className = "input-box";
-
-                    let key = `appointment-${weekOffset}-${rowIndex}-${colIndex}`;
-                    fileInput.value = localStorage.getItem(key + "-file") || "";
-                    nameInput.value = localStorage.getItem(key + "-name") || "";
-                    noteInput.value = localStorage.getItem(key + "-note") || "";
-
-                    function checkFilled() {
-                        if (fileInput.value || nameInput.value || noteInput.value) {
-                            cell.classList.add("filled");
-                        } else {
-                            cell.classList.remove("filled");
+                    let key = `week${weekOffset}/time${rowIndex}/day${colIndex}`;
+                    db.ref(key).get().then(snapshot => {
+                        if (snapshot.exists()) {
+                            let data = snapshot.val();
+                            fileInput.value = data.file || "";
+                            nameInput.value = data.name || "";
+                            noteInput.value = data.note || "";
+                            checkFilled(cell, fileInput, nameInput, noteInput);
                         }
-                    }
+                    });
 
-                    fileInput.addEventListener("input", () => { localStorage.setItem(key + "-file", fileInput.value); checkFilled(); });
-                    nameInput.addEventListener("input", () => { localStorage.setItem(key + "-name", nameInput.value); checkFilled(); });
-                    noteInput.addEventListener("input", () => { localStorage.setItem(key + "-note", noteInput.value); checkFilled(); });
+                    [fileInput, nameInput, noteInput].forEach((input, idx) => {
+                        input.addEventListener("input", () => {
+                            db.ref(key).set({
+                                file: fileInput.value,
+                                name: nameInput.value,
+                                note: noteInput.value
+                            });
+                            checkFilled(cell, fileInput, nameInput, noteInput);
+                        });
+                    });
 
-                    checkFilled();
+                    clearButton.onclick = () => {
+                        db.ref(key).remove();
+                        [fileInput, nameInput, noteInput].forEach(input => input.value = "");
+                        checkFilled(cell, fileInput, nameInput, noteInput);
+                    };
 
-                    cell.appendChild(fileInput);
-                    cell.appendChild(nameInput);
-                    cell.appendChild(noteInput);
+                    cell.append(fileInput, nameInput, noteInput, clearButton);
+                    checkFilled(cell, fileInput, nameInput, noteInput);
                     row.appendChild(cell);
                 }
-
                 scheduleTable.appendChild(row);
             });
         }
 
-        function prevWeek() {
-            weekOffset--;
-            updateWeek();
+        function createInput(placeholder) {
+            let input = document.createElement("input");
+            input.type = "text";
+            input.placeholder = placeholder;
+            input.className = "input-box";
+            return input;
         }
 
-        function nextWeek() {
-            weekOffset++;
-            updateWeek();
+        function checkFilled(cell, ...inputs) {
+            cell.classList.toggle("filled", inputs.some(input => input.value));
         }
+
+        function prevWeek() { weekOffset--; updateWeek(); }
+        function nextWeek() { weekOffset++; updateWeek(); }
 
         updateWeek();
     </script>
