@@ -37,6 +37,8 @@
                 <th id="dayName3"></th>
                 <th id="dayName4"></th>
                 <th id="dayName5"></th>
+                <th id="dayName6"></th> <!-- Saturday -->
+                <th id="dayName7"></th> <!-- Sunday -->
             </tr>
             <tr>
                 <th id="day1"></th>
@@ -44,6 +46,8 @@
                 <th id="day3"></th>
                 <th id="day4"></th>
                 <th id="day5"></th>
+                <th id="day6"></th> <!-- Saturday -->
+                <th id="day7"></th> <!-- Sunday -->
             </tr>
         </thead>
         <tbody id="schedule"></tbody>
@@ -69,19 +73,25 @@
 
         function updateWeek() {
             let startDate = new Date();
-            startDate.setDate(currentDate.getDate() + (weekOffset * 7));
+            // تحديد بداية الأسبوع (الأحد)
+            startDate.setDate(currentDate.getDate() - currentDate.getDay()); // سيحدد اليوم الأول من الأسبوع (الأحد)
+            startDate.setDate(startDate.getDate() + (weekOffset * 7));
+
             let days = [];
             let dayNames = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
-            for (let i = 0; i < 5; i++) {
+            // تحديد الأيام من الأحد إلى السبت
+            for (let i = 0; i < 7; i++) {
                 let day = new Date(startDate);
                 day.setDate(startDate.getDate() + i);
                 days.push(day);
             }
 
-            document.getElementById("week-range").textContent = `الأسبوع من ${days[0].toLocaleDateString("ar-EG")} إلى ${days[4].toLocaleDateString("ar-EG")}`;
+            // تحديث النص الخاص بالأيام في الجدول
+            document.getElementById("week-range").textContent = `الأسبوع من ${days[0].toLocaleDateString("en-US")} إلى ${days[6].toLocaleDateString("en-US")}`;
 
-            ["day1", "day2", "day3", "day4", "day5"].forEach((id, index) => {
+            // تحديد الأسماء والتواريخ في الجدول
+            ["day1", "day2", "day3", "day4", "day5", "day6", "day7"].forEach((id, index) => {
                 document.getElementById(id).textContent = days[index].toLocaleDateString("en-US");
                 document.getElementById(`dayName${index + 1}`).textContent = dayNames[days[index].getDay()];
             });
@@ -98,25 +108,42 @@
                 let row = document.createElement("tr");
                 row.innerHTML = `<td style='background-color: #085589; color: white;'>${time}</td>`;
 
-                for (let colIndex = 0; colIndex < 5; colIndex++) {
+                for (let colIndex = 0; colIndex < 7; colIndex++) {  // 7 days now
                     let cell = document.createElement("td");
                     let fileInput = createInput("رقم الملف");
                     let nameInput = createInput("الاسم");
                     let noteInput = createInput("ملاحظة");
                     let clearButton = createButton("×", "clear-btn", () => clearCell(key, cell, fileInput, nameInput, noteInput));
-                    let confirmButton = createButton("✔", "confirm-btn", () => confirmCell(cell));
+                    let confirmButton = createButton("✔", "confirm-btn", () => confirmCell(key, cell));
 
                     let key = `week${weekOffset}/time${rowIndex}/day${colIndex}`;
-                    db.ref(key).get().then(snapshot => {
+
+                    // Monitor changes in real-time with onValue
+                    db.ref(key).on('value', (snapshot) => {
                         if (snapshot.exists()) {
                             let data = snapshot.val();
                             fileInput.value = data.file || "";
                             nameInput.value = data.name || "";
                             noteInput.value = data.note || "";
+
+                            // If confirmed, add the confirmed class
+                            if (data.confirmed) {
+                                cell.classList.add("confirmed");
+                            } else {
+                                cell.classList.remove("confirmed");
+                            }
                             checkFilled(cell, fileInput, nameInput, noteInput);
+                        } else {
+                            // When data is removed, reset the color and inputs
+                            fileInput.value = "";
+                            nameInput.value = "";
+                            noteInput.value = "";
+                            checkFilled(cell, fileInput, nameInput, noteInput);
+                            cell.classList.remove("filled", "confirmed");
                         }
                     });
 
+                    // Listen to changes in inputs
                     [fileInput, nameInput, noteInput].forEach(input => {
                         input.addEventListener("input", () => {
                             db.ref(key).set({ file: fileInput.value, name: nameInput.value, note: noteInput.value });
@@ -152,14 +179,23 @@
             cell.classList.toggle("filled", inputs.some(input => input.value));
         }
 
-        function confirmCell(cell) {
+        function confirmCell(key, cell) {
+            // Update the database with the confirmation status
+            db.ref(key).update({ confirmed: true });
+
+            // Change the cell style to "confirmed"
             cell.classList.add("confirmed");
         }
 
         function clearCell(key, cell, ...inputs) {
-            db.ref(key).remove();
-            inputs.forEach(input => input.value = "");
-            cell.classList.remove("filled", "confirmed");
+            // Remove data from Firebase
+            db.ref(key).remove().then(() => {
+                // Ensure the color is reset after deletion
+                cell.classList.remove("filled", "confirmed");
+
+                // Reset input values
+                inputs.forEach(input => input.value = "");
+            });
         }
 
         function prevWeek() { weekOffset--; updateWeek(); }
