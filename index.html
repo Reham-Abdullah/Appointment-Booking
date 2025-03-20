@@ -73,24 +73,20 @@
 
         function updateWeek() {
             let startDate = new Date();
-            // تحديد بداية الأسبوع (الأحد)
             startDate.setDate(currentDate.getDate() - currentDate.getDay()); // سيحدد اليوم الأول من الأسبوع (الأحد)
             startDate.setDate(startDate.getDate() + (weekOffset * 7));
 
             let days = [];
             let dayNames = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
-            // تحديد الأيام من الأحد إلى السبت
             for (let i = 0; i < 7; i++) {
                 let day = new Date(startDate);
                 day.setDate(startDate.getDate() + i);
                 days.push(day);
             }
 
-            // تحديث النص الخاص بالأيام في الجدول
             document.getElementById("week-range").textContent = `الأسبوع من ${days[0].toLocaleDateString("en-US")} إلى ${days[6].toLocaleDateString("en-US")}`;
 
-            // تحديد الأسماء والتواريخ في الجدول
             ["day1", "day2", "day3", "day4", "day5", "day6", "day7"].forEach((id, index) => {
                 document.getElementById(id).textContent = days[index].toLocaleDateString("en-US");
                 document.getElementById(`dayName${index + 1}`).textContent = dayNames[days[index].getDay()];
@@ -100,7 +96,11 @@
         }
 
         function generateSchedule() {
-            const times = Array.from({ length: 24 }, (_, hour) => `${hour % 12 === 0 ? 12 : hour % 12}:00 ${hour < 12 ? "AM" : "PM"}`);
+            const times = Array.from({ length: 4 }, (_, hour) => {
+                const hour24 = 21 + hour; // 21 هو 9 PM في النظام الـ24 ساعة
+                return `${hour24 % 12 === 0 ? 12 : hour24 % 12}:00 ${hour24 < 12 || hour24 === 24 ? "AM" : "PM"}`;
+            });
+
             const scheduleTable = document.getElementById("schedule");
             scheduleTable.innerHTML = "";
 
@@ -108,7 +108,7 @@
                 let row = document.createElement("tr");
                 row.innerHTML = `<td style='background-color: #085589; color: white;'>${time}</td>`;
 
-                for (let colIndex = 0; colIndex < 7; colIndex++) {  // 7 days now
+                for (let colIndex = 0; colIndex < 7; colIndex++) {
                     let cell = document.createElement("td");
                     let fileInput = createInput("رقم الملف");
                     let nameInput = createInput("الاسم");
@@ -118,7 +118,6 @@
 
                     let key = `week${weekOffset}/time${rowIndex}/day${colIndex}`;
 
-                    // Monitor changes in real-time with onValue
                     db.ref(key).on('value', (snapshot) => {
                         if (snapshot.exists()) {
                             let data = snapshot.val();
@@ -126,7 +125,6 @@
                             nameInput.value = data.name || "";
                             noteInput.value = data.note || "";
 
-                            // If confirmed, add the confirmed class
                             if (data.confirmed) {
                                 cell.classList.add("confirmed");
                             } else {
@@ -134,7 +132,6 @@
                             }
                             checkFilled(cell, fileInput, nameInput, noteInput);
                         } else {
-                            // When data is removed, reset the color and inputs
                             fileInput.value = "";
                             nameInput.value = "";
                             noteInput.value = "";
@@ -143,7 +140,6 @@
                         }
                     });
 
-                    // Listen to changes in inputs
                     [fileInput, nameInput, noteInput].forEach(input => {
                         input.addEventListener("input", () => {
                             db.ref(key).set({ file: fileInput.value, name: nameInput.value, note: noteInput.value });
@@ -180,20 +176,13 @@
         }
 
         function confirmCell(key, cell) {
-            // Update the database with the confirmation status
             db.ref(key).update({ confirmed: true });
-
-            // Change the cell style to "confirmed"
             cell.classList.add("confirmed");
         }
 
         function clearCell(key, cell, ...inputs) {
-            // Remove data from Firebase
             db.ref(key).remove().then(() => {
-                // Ensure the color is reset after deletion
                 cell.classList.remove("filled", "confirmed");
-
-                // Reset input values
                 inputs.forEach(input => input.value = "");
             });
         }
